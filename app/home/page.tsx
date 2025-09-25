@@ -17,6 +17,19 @@ export default function HomePage() {
       
       if (!user) {
         router.push('/')
+        return
+      }
+
+      // Check if user has completed onboarding
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('budget_band, vibes')
+        .eq('id', user.id)
+        .single()
+
+      if (!userProfile?.budget_band || !userProfile?.vibes?.length) {
+        router.push('/onboarding')
+        return
       }
     }
 
