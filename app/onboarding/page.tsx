@@ -113,7 +113,7 @@ export default function OnboardingPage() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
               Welcome to Your Fashion Journey
             </h1>
-            <p className="text-gray-600 text-lg">Let's get to know your style preferences</p>
+            <p className="text-gray-600 text-lg">Let&apos;s get to know your style preferences</p>
           </div>
         </div>
 

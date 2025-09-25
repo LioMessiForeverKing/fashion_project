@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 
 interface ClosetItem {
   id: string
@@ -19,7 +21,7 @@ export default function ClosetPage() {
   const [items, setItems] = useState<ClosetItem[]>([])
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function ClosetPage() {
         const fileExt = file.name.split('.').pop()
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('closet-images')
           .upload(fileName, file)
 
@@ -157,7 +159,7 @@ export default function ClosetPage() {
         const fileExt = file.name.split('.').pop()
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('closet-images')
           .upload(fileName, file)
 
@@ -392,9 +394,11 @@ function ClosetItemCard({
 
   return (
     <div className="relative bg-gray-50 rounded-lg overflow-hidden">
-      <img
+      <Image
         src={item.image_url}
         alt="Closet item"
+        width={200}
+        height={128}
         className="w-full h-32 object-cover"
       />
       

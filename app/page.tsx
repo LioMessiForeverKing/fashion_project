@@ -1,14 +1,11 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  const router = useRouter()
-
   const handleGoogleSignIn = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/home`

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 
 interface ClosetItem {
@@ -25,23 +26,9 @@ export default function CapsulePage() {
   const [items, setItems] = useState<ClosetItem[]>([])
   const [gaps, setGaps] = useState<GapSpec[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/')
-        return
-      }
-      setUser(user)
-      await loadCapsule(user.id)
-    }
-    getUser()
-  }, [router])
-
-  const loadCapsule = async (userId: string) => {
+  const loadCapsule = useCallback(async (userId: string) => {
     try {
       // Get user's closet items
       const { data: closetItems, error } = await supabase
@@ -88,7 +75,19 @@ export default function CapsulePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/')
+        return
+      }
+      await loadCapsule(user.id)
+    }
+    getUser()
+  }, [router, loadCapsule])
 
   const generateCapsule = (allItems: ClosetItem[]) => {
     // Include ALL confirmed items from your closet
@@ -196,9 +195,11 @@ export default function CapsulePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {items.map((item) => (
               <div key={item.id} className="bg-gray-50 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={item.image_url}
                   alt={item.category}
+                  width={200}
+                  height={96}
                   className="w-full h-24 object-cover"
                 />
                 <div className="p-2">

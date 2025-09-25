@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 
 interface ClosetItem {
   id: string
@@ -21,81 +23,27 @@ interface Outfit {
   score: number
   saved: boolean
   worn: boolean
-  metadata: any
+  metadata: {
+    type?: string
+    colors?: string[]
+  }
 }
 
 export default function OutfitsPage() {
   const [outfits, setOutfits] = useState<Outfit[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/')
-        return
-      }
-      setUser(user)
-      await loadOutfits(user.id)
-    }
-    getUser()
-  }, [router])
-
-  const loadOutfits = async (userId: string) => {
-    try {
-      // Get user's closet items
-      const { data: closetItems, error } = await supabase
-        .from('closet_items')
-        .select('*')
-        .eq('user_id', userId)
-
-      if (error) {
-        console.error('Error loading closet items:', error)
-        return
-      }
-
-      if (!closetItems || closetItems.length < 3) {
-        router.push('/closet')
-        return
-      }
-
-      // Generate outfits
-      const generatedOutfits = generateOutfits(closetItems)
-      setOutfits(generatedOutfits)
-
-      // Save outfits to database
-      await saveOutfits(userId, generatedOutfits)
-
-      // Log event
-      await supabase
-        .from('events')
-        .insert({
-          user_id: userId,
-          type: 'generate_outfits',
-          metadata: { 
-            total_outfits: generatedOutfits.length,
-            total_items: closetItems.length
-          }
-        })
-
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const generateOutfits = (items: ClosetItem[]): Outfit[] => {
+  const generateOutfits = useCallback((items: ClosetItem[]): Outfit[] => {
     const outfits: Outfit[] = []
     
     // Group items by category
     const tops = items.filter(item => item.category === 'top')
     const bottoms = items.filter(item => item.category === 'bottom')
     const dresses = items.filter(item => item.category === 'dress')
-    const outerwear = items.filter(item => item.category === 'outerwear')
     const shoes = items.filter(item => item.category === 'shoes')
+    const outerwear = items.filter(item => item.category === 'outerwear')
     const bags = items.filter(item => item.category === 'bag')
 
     // Generate outfit combinations
@@ -148,7 +96,7 @@ export default function OutfitsPage() {
         ) || bags[0]
         
         const jacket = outerwear.find(o => 
-          isColorCompatible(o.color, top.color) && 
+          isColorCompatible(o.color, top.color) || 
           isColorCompatible(o.color, bottom.color)
         )
 
@@ -157,15 +105,17 @@ export default function OutfitsPage() {
         if (jacket) outfitItems.push(jacket)
 
         if (outfitItems.length >= 3) {
-          const occasion = determineOccasion(outfitItems)
           outfits.push({
             id: `outfit-${outfitCount}`,
             items: outfitItems,
-            occasion,
+            occasion: 'casual',
             score: calculateOutfitScore(outfitItems),
             saved: false,
             worn: false,
-            metadata: { type: 'separates', colors: outfitItems.map(i => i.color) }
+            metadata: { 
+              type: 'top-bottom', 
+              colors: outfitItems.map(i => i.color) 
+            }
           })
           outfitCount++
         }
@@ -176,7 +126,64 @@ export default function OutfitsPage() {
     return outfits
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
-  }
+  }, [])
+
+  const loadOutfits = useCallback(async (userId: string) => {
+    try {
+      // Get user's closet items
+      const { data: closetItems, error } = await supabase
+        .from('closet_items')
+        .select('*')
+        .eq('user_id', userId)
+
+      if (error) {
+        console.error('Error loading closet items:', error)
+        return
+      }
+
+      if (!closetItems || closetItems.length < 3) {
+        router.push('/closet')
+        return
+      }
+
+      // Generate outfits
+      const generatedOutfits = generateOutfits(closetItems)
+      setOutfits(generatedOutfits)
+
+      // Save outfits to database
+      await saveOutfits(userId, generatedOutfits)
+
+      // Log event
+      await supabase
+        .from('events')
+        .insert({
+          user_id: userId,
+          type: 'generate_outfits',
+          metadata: { 
+            total_outfits: generatedOutfits.length,
+            total_items: closetItems.length
+          }
+        })
+
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [router, generateOutfits])
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/')
+        return
+      }
+      setUser(user)
+      await loadOutfits(user.id)
+    }
+    getUser()
+  }, [router, loadOutfits])
 
   const isColorCompatible = (color1: string, color2: string): boolean => {
     const neutralColors = ['black', 'white', 'cream', 'camel', 'navy', 'grey']
@@ -203,16 +210,6 @@ export default function OutfitsPage() {
       (combo[0] === color1 && combo[1] === color2) ||
       (combo[0] === color2 && combo[1] === color1)
     )
-  }
-
-  const determineOccasion = (items: ClosetItem[]): string => {
-    const hasBlazer = items.some(item => item.subcategory === 'blazer')
-    const hasHeels = items.some(item => item.subcategory === 'heels')
-    const hasSneakers = items.some(item => item.subcategory === 'sneakers')
-    
-    if (hasBlazer || hasHeels) return 'work'
-    if (hasSneakers) return 'casual'
-    return 'casual'
   }
 
   const calculateOutfitScore = (items: ClosetItem[]): number => {
@@ -376,9 +373,11 @@ export default function OutfitsPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {outfit.items.map((item) => (
                   <div key={item.id} className="text-center">
-                    <img
+                    <Image
                       src={item.image_url}
                       alt={item.category}
+                      width={80}
+                      height={80}
                       className="w-full h-20 object-cover rounded mb-2"
                     />
                     <p className="text-xs text-black font-medium capitalize">{item.category}</p>
@@ -392,7 +391,7 @@ export default function OutfitsPage() {
                 <p className="text-sm text-gray-700">
                   {outfit.metadata.type === 'dress' 
                     ? `Perfect ${outfit.occasion} look with your ${outfit.items[0]?.color} dress`
-                    : `Stylish ${outfit.occasion} combination with ${outfit.metadata.colors.join(' and ')} colors`
+                    : `Stylish ${outfit.occasion} combination with ${outfit.metadata.colors?.join(' and ') || 'mixed'} colors`
                   }
                 </p>
               </div>
