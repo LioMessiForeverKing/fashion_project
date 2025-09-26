@@ -97,17 +97,27 @@ export default function ClosetPage() {
           continue
         }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
+        // Get signed URL for private bucket access
+        const { data: signedUrlData, error: urlError } = await supabase.storage
           .from('closet-images')
-          .getPublicUrl(fileName)
+          .createSignedUrl(fileName, 60 * 60 * 24 * 7) // 7 days expiry
 
-        // Update item with real URL and move to tagging
+        if (urlError) {
+          console.error('Error creating signed URL:', urlError)
+          setItems(prev => prev.map(item => 
+            item.id === tempId 
+              ? { ...item, status: 'error' }
+              : item
+          ))
+          continue
+        }
+
+        // Update item with signed URL and move to tagging
         setItems(prev => prev.map(item => 
           item.id === tempId 
             ? { 
                 ...item, 
-                image_url: publicUrl,
+                image_url: signedUrlData.signedUrl,
                 status: 'tagging'
               }
             : item
@@ -173,17 +183,27 @@ export default function ClosetPage() {
           continue
         }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
+        // Get signed URL for private bucket access
+        const { data: signedUrlData, error: urlError } = await supabase.storage
           .from('closet-images')
-          .getPublicUrl(fileName)
+          .createSignedUrl(fileName, 60 * 60 * 24 * 7) // 7 days expiry
 
-        // Update item with real URL and move to tagging
+        if (urlError) {
+          console.error('Error creating signed URL:', urlError)
+          setItems(prev => prev.map(item => 
+            item.id === tempId 
+              ? { ...item, status: 'error' }
+              : item
+          ))
+          continue
+        }
+
+        // Update item with signed URL and move to tagging
         setItems(prev => prev.map(item => 
           item.id === tempId 
             ? { 
                 ...item, 
-                image_url: publicUrl,
+                image_url: signedUrlData.signedUrl,
                 status: 'tagging'
               }
             : item

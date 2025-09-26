@@ -32,6 +32,10 @@ export default function HomePage() {
         router.push('/onboarding')
         return
       }
+
+      // If user has completed onboarding, redirect to closet (main app)
+      router.push('/closet')
+      return
     }
 
     getUser()
@@ -49,9 +53,6 @@ export default function HomePage() {
     return () => subscription.unsubscribe()
   }, [router])
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-  }
 
   if (loading) {
     return (
@@ -65,17 +66,11 @@ export default function HomePage() {
     return null // Will redirect to home page
   }
 
+  // This page should redirect users, so show loading while redirecting
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-black mb-4">Welcome</h1>
-        <p className="text-black mb-6">You have successfully signed in!</p>
-        <button 
-          onClick={handleSignOut}
-          className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-        >
-          Sign Out
-        </button>
+        <div className="text-black">Redirecting...</div>
       </div>
     </div>
   );
